@@ -1,0 +1,8 @@
+# frozen_string_literal: true
+
+source "https://rubygems.org"
+
+gem "ruby_llm", "~> 1.9"
+gem "couchbase", "~> 3.6"
+gem "dotenv", "~> 3.1"
+gem "pastel", "~> 0.8"
