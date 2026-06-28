@@ -30,7 +30,7 @@ class CouchbaseStore
       "SELECT id, name, email, phone, tier, created_at, total_orders, lifetime_value " \
       "FROM `#{BUCKET_NAME}`.`_default`.`customers` " \
       "WHERE email = $email LIMIT 1",
-      email: email
+      email: email.to_s.downcase
     ).first
   end
 
@@ -101,13 +101,14 @@ class CouchbaseStore
 
   def update_ticket(ticket_id:, status: nil, priority: nil, agent_note: nil)
     col    = collection("tickets")
-    ticket = col.get(ticket_id).content
+    result = col.get(ticket_id)
+    ticket = result.content
 
-    ticket["status"]     = status   if status
-    ticket["priority"]   = priority if priority
+    ticket["status"]     = status   if status && !status.to_s.strip.empty?
+    ticket["priority"]   = priority if priority && !priority.to_s.strip.empty?
     ticket["updated_at"] = Time.now.utc.iso8601
 
-    if agent_note
+    if agent_note && !agent_note.to_s.strip.empty?
       ticket["messages"] ||= []
       ticket["messages"] << {
         "role"      => "agent",
@@ -116,7 +117,8 @@ class CouchbaseStore
       }
     end
 
-    col.upsert(ticket_id, ticket)
+    options = Couchbase::Options::Replace.new(cas: result.cas)
+    col.replace(ticket_id, ticket, options)
     ticket
   rescue Couchbase::Error::DocumentNotFound
     nil

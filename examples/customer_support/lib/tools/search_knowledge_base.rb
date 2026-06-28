@@ -16,6 +16,8 @@ class SearchKnowledgeBase < RubyLLM::Tool
   end
 
   def execute(query:)
+    return { found: false, message: "Search query cannot be empty" } if query.to_s.strip.empty?
+
     articles = @store.search_knowledge_base(query)
 
     return { found: false, message: "No articles found for: #{query}" } if articles.empty?
