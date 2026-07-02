@@ -1,0 +1,64 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+#
+# Interactive CLI for the Acme Store customer support agent.
+# Usage: bundle exec ruby bin/chat
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "dotenv/load"
+require "ruby_llm"
+require "pastel"
+require "support_agent"
+
+pastel = Pastel.new
+
+puts pastel.bold.cyan("=" * 60)
+puts pastel.bold.cyan("  Acme Store – Customer Support Agent")
+puts pastel.bold.cyan("  Powered by Claude + Couchbase")
+puts pastel.bold.cyan("=" * 60)
+puts
+puts pastel.dim("Type your message and press Enter.")
+puts pastel.dim("Type 'exit' or press Ctrl+C to end the session.")
+puts
+
+RubyLLM.configure do |config|
+  config.anthropic_api_key = ENV.fetch("ANTHROPIC_API_KEY") do
+    abort pastel.red("ERROR: ANTHROPIC_API_KEY is not set. Copy .env.example to .env and fill in your key.")
+  end
+end
+
+agent = SupportAgent.new
+
+puts pastel.bold.green("Agent: ") +
+     "Hello! I'm your Acme Store support agent. How can I help you today? " \
+     "Feel free to share your email address so I can pull up your account."
+puts
+
+begin
+  loop do
+    print pastel.bold.blue("You: ")
+    input = $stdin.gets&.chomp
+
+    break if input.nil? || %w[exit quit bye].include?(input.downcase.strip)
+    next  if input.strip.empty?
+
+    print pastel.bold.green("Agent: ")
+
+    begin
+      response = agent.ask(input)
+      puts response.content
+    rescue => e
+      puts pastel.red("Error: #{e.message}")
+      puts pastel.dim(e.backtrace.first(3).join("\n")) if ENV["DEBUG"]
+    end
+
+    puts
+  end
+rescue Interrupt
+  # graceful Ctrl+C
+ensure
+  puts
+  puts pastel.dim("Disconnecting from Couchbase... Goodbye!")
+  agent.disconnect
+end
